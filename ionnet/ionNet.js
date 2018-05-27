@@ -3,6 +3,11 @@ msgCrypt.createKeys();
 
 var IonNetClient = class IonNetClient {
 
+    /**
+     * 
+     * @param {*} ws WebSocket instance
+     * @param {boolean} [isPeer=false] if the IonNetClient is a Server peer
+     */
     constructor(ws, isPeer = false) {
         this.enumMessageType = {
             UTIL: 0,
@@ -60,6 +65,11 @@ var IonNetClient = class IonNetClient {
         });
     }
 
+
+    /**
+     * Called when the Client receives a message that is not tied to a sent message
+     * @param {function} func Function to call when the Message event is triggered
+     */
     onMessage(func) {
         this.message = func;
     }
@@ -67,15 +77,24 @@ var IonNetClient = class IonNetClient {
     /**
      * Called when the handler has completed
      * the handshake and is ready to communicate
+     * @param {function} func Function to call when the Ready event is triggered
      */
     onReady(func) {
         this.ready = func;
     }
 
+    /**
+     * Called when the handler is notifed that the connection was closed or terminated
+     * @param {function} func Function to call when the Disconnect event is triggered
+     */
     onDisconnect(func) {
         this.disconnect = func;
     }
 
+    /**
+     * Starts the handshake with the Server. Only does this if it isn't a peer
+     * @private
+     */
     startHandshake() {
         var handshakeObj = {
             key: msgCrypt.publicKey,
@@ -85,6 +104,12 @@ var IonNetClient = class IonNetClient {
         this.ws.send(handshakeObj);
     }
 
+    /**
+     * Sends a message to the specified RPC endpoint
+     * @param {string} func RPC endpoint to call
+     * @param {*} obj json object to send
+     * @returns {Promise} Promise returning entire server response
+     */
     async send(func, obj) {
         return new Promise(async (resolve,reject) => {
             if(this.handshake) {
@@ -105,6 +130,12 @@ var IonNetClient = class IonNetClient {
         })
     }
 
+    /**
+     * Sends a reply corresponding to a received message
+     * @param {string} func RPC endpoint that was called
+     * @param {number} i numerical id of the sent message
+     * @param {*} obj json object to send
+     */
     async reply(func, i, obj) {
         return new Promise(async (resolve,reject) => {
             if(this.handshake) {
@@ -115,12 +146,18 @@ var IonNetClient = class IonNetClient {
                     o: obj
                 };
                 this.ws.send(await this.cryptObj.encrypt(JSON.stringify(msgObj)));
+                resolve(true);
             } else {
                 reject('IonNetHandler not ready.')
             }
         })
     }
 
+    /**
+     * Sends a push notification (not expecting a reply)
+     * @param {string} func RPC endpoint to call
+     * @param {*} obj json object to send
+     */
     async push(func, obj) {
         return new Promise(async (resolve,reject) => {
             if(this.handshake) {
@@ -130,12 +167,20 @@ var IonNetClient = class IonNetClient {
                     o: obj
                 };
                 this.ws.send(await this.cryptObj.encrypt(JSON.stringify(msgObj)));
+                resolve(true);
             } else {
                 reject('IonNetHandler not ready.')
             }
         })
     }
 
+    /**
+     * 
+     * @param {string} func RPC endpoint that was called
+     * @param {number} i numerical id of the sent message
+     * @param {number} [code=-1] corresponding error code
+     * @param {*} [obj=null] json object to send
+     */
     async error(func, i, code = -1, obj = null) {
         return new Promise(async (resolve,reject) => {
             if(this.handshake) {
@@ -149,6 +194,7 @@ var IonNetClient = class IonNetClient {
                     msgObj.o = obj;
                 }
                 this.ws.send(await this.cryptObj.encrypt(JSON.stringify(msgObj)));
+                resolve(true);
             } else {
                 reject('IonNetHandler not ready.')
             }
